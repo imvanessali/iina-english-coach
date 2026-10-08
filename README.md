@@ -4,6 +4,10 @@
 
 An IINA plugin for learning English from subtitles: when you pause, the subtitle becomes selectable in place (pixel-aligned with IINA's own rendering), and selecting a word or phrase shows its Chinese translation, plus in-context meaning and cultural notes from an LLM of your choice.
 
+<p align="center">
+  <img src="docs/demo.gif" width="720" alt="暂停后字幕出现流光，选中 twink 弹出卡片：Google 词义、DeepSeek 给出的这里的意思、整句翻译和背景解释">
+</p>
+
 ## 使用
 
 1. 从 [Releases](https://github.com/imvanessali/iina-english-coach/releases) 下载最新的 `.iinaplgz`，双击安装，或在 IINA 的“设置 → 插件”中导入。
