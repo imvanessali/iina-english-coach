@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { padding: 4px 2px; }
+    input[type="password"], input[type="text"], select { width: 100%; box-sizing: border-box; margin-top: 4px; }
+    .row { display: flex; align-items: center; gap: 6px; }
+    .saved { margin-left: 6px; color: #2e9d4f; opacity: 0; transition: opacity .2s; }
+    .saved[data-shown="true"] { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="pref-section">
+    <label class="row">
+      <input type="checkbox" data-type="bool" data-pref-key="llm_enabled">
+      选词时用大模型结合语境解释
+    </label>
+    <p class="small secondary pref-help">
+      会说明选中部分在这句里的意思、整句的自然译法，以及俚语、习语和文化背景。
+      没有填密钥或关闭时，只显示 Google 翻译。
+    </p>
+  </div>
+
+  <div class="pref-section">
+    服务商：
+    <select id="provider"></select>
+  </div>
+
+  <div class="pref-section">
+    API 密钥：<span class="saved small" id="key-saved">已保存</span>
+    <input type="password" data-save-key="llm_api_key" id="key" placeholder="在服务商的控制台创建" autocomplete="off" spellcheck="false">
+    <p class="small secondary pref-help" id="key-help"></p>
+  </div>
+
+  <div class="pref-section">
+    模型：<span class="saved small" id="model-saved">已保存</span>
+    <input type="text" data-save-key="llm_model" id="model" autocomplete="off" spellcheck="false">
+    <p class="small secondary pref-help">留空使用括号里的默认模型。模型名称会随服务商更新而变化，用不了时换成服务商控制台里列出的名称。</p>
+  </div>
+
+  <div class="pref-section" id="base-section">
+    服务地址：<span class="saved small" id="base-saved">已保存</span>
+    <input type="text" data-save-key="llm_base_url" id="base" placeholder="https://example.com/v1" autocomplete="off" spellcheck="false">
+    <p class="small secondary pref-help">OpenAI 兼容接口的地址，插件会请求它后面的 /chat/completions。</p>
+  </div>
+
+  <p class="small secondary">
+    每次选词会把当前这句、前两句和后一句字幕以及剧名发给所选服务商，按其 API 用量计费。
+    密钥只保存在 IINA 的插件设置里。
+  </p>
+
+  <script>
+  // Wrapped in a function: IINA injects its own scripts into this page that
+  // declare top-level names such as `preferences`, and a clash would break them.
+  (() => {
+    // Keep in sync with LLM_PROVIDERS in src/index.js.
+    const PROVIDERS = [
+      ["anthropic", "Claude (Anthropic)", "claude-opus-5-5", "console.anthropic.com"],
+      ["openai", "OpenAI", "gpt-5-mini", "platform.openai.com"],
+      ["gemini", "Google Gemini", "gemini-2.5-flash", "aistudio.google.com"],
+      ["deepseek", "DeepSeek", "deepseek-chat", "platform.deepseek.com"],
+      ["moonshot", "Kimi (Moonshot)", "moonshot-v1-8k", "platform.moonshot.cn"],
+      ["qwen", "通义千问 (阿里云百炼)", "qwen-plus", "bailian.console.aliyun.com"],
+      ["zhipu", "智谱 GLM", "glm-4-flash", "open.bigmodel.cn"],
+      ["doubao", "豆包 (火山方舟)", "", "console.volcengine.com/ark，模型填接入点 ID 或模型名"],
+      ["siliconflow", "硅基流动", "deepseek-ai/DeepSeek-V3", "cloud.siliconflow.cn"],
+      ["openrouter", "OpenRouter", "openai/gpt-5-mini", "openrouter.ai"],
+      ["xai", "xAI Grok", "grok-3-mini", "console.x.ai"],
+      ["mistral", "Mistral", "mistral-small-latest", "console.mistral.ai"],
+      ["custom", "自定义（OpenAI 兼容）", "", "填写服务地址和模型名"],
+    ];
+    const { preferences } = window.iina;
+    const select = document.getElementById("provider");
+    const model = document.getElementById("model");
+    const keyHelp = document.getElementById("key-help");
+    const baseSection = document.getElementById("base-section");
+    for (const [id, name] of PROVIDERS) select.add(new Option(name, id));
+
+    function refresh() {
+      const entry = PROVIDERS.find(([id]) => id === select.value) || PROVIDERS[0];
+      model.placeholder = entry[2] ? `（${entry[2]}）` : "必填";
+      keyHelp.textContent = `在 ${entry[3]} 获取。`;
+      baseSection.style.display = entry[0] === "custom" ? "" : "none";
+    }
+
+    preferences.get("llm_provider", (value) => {
+      select.value = PROVIDERS.some(([id]) => id === value) ? value : "anthropic";
+      refresh();
+    });
+    select.addEventListener("change", () => {
+      preferences.set("llm_provider", select.value);
+      refresh();
+    });
+    refresh();
+
+    // IINA's built-in data-pref-key binding only saves on the "change" event,
+    // which never fires if the window is closed right after pasting. Save text
+    // fields on every edit instead, and show that it happened.
+    for (const input of document.querySelectorAll("input[data-save-key]")) {
+      const key = input.dataset.saveKey;
+      const badge = document.getElementById(`${input.id}-saved`);
+      let hideTimer = null;
+      preferences.get(key, (value) => {
+        input.value = value == null ? "" : String(value);
+      });
+      // Save, then read the value back from IINA and only then confirm.
+      const save = () => {
+        const value = input.value.trim();
+        preferences.set(key, value);
+        preferences.get(key, (stored) => {
+          if (!badge || String(stored == null ? "" : stored) !== value) return;
+          badge.dataset.shown = "true";
+          clearTimeout(hideTimer);
+          hideTimer = setTimeout(() => { badge.dataset.shown = "false"; }, 2000);
+        });
+      };
+      input.addEventListener("input", save);
+      input.addEventListener("change", save);
+      input.addEventListener("blur", save);
+    }
+  })();
+  </script>
+</body>
+</html>

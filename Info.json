@@ -1,0 +1,27 @@
+{
+  "name": "English Coach",
+  "identifier": "dev.vanessa.iina-english-coach",
+  "version": "0.3.21",
+  "description": "Selectable, translatable English subtitles when paused, aligned with IINA's own subtitles.",
+  "author": {
+    "name": "Vanessa"
+  },
+  "entry": "src/index.js",
+  "permissions": [
+    "video-overlay",
+    "network-request",
+    "file-system"
+  ],
+  "allowedDomains": [
+    "translate.googleapis.com",
+    "clients5.google.com"
+  ],
+  "preferencesPage": "ui/preferences.html",
+  "preferenceDefaults": {
+    "llm_enabled": true,
+    "llm_provider": "anthropic",
+    "llm_api_key": "",
+    "llm_model": "",
+    "llm_base_url": ""
+  }
+}
